@@ -82,7 +82,7 @@
           id="status-text"
           class="text-center text-yellow-400 font-medium mt-2 transition-colors duration-300"
         >
-          Pump Mode: Default
+          Pump Status: Connecting...
         </p>
       </div>
 
@@ -207,14 +207,17 @@
           id="pump-controls"
           class="flex space-x-2 rounded-lg bg-gray-700 p-1"
         >
-          <button id="pump-default" class="pump-btn active-btn">Default</button>
+          <button id="pump-default" class="pump-btn">Default</button>
           <button id="pump-on" class="pump-btn">On</button>
           <button id="pump-off" class="pump-btn">Off</button>
         </div>
       </div>
 
-      <!-- Footer with Last Updated Timestamp -->
+      <!-- Connection Status -->
       <div class="text-center">
+        <p id="connection-status" class="text-sm text-yellow-400">
+          Connecting to Firebase...
+        </p>
         <p id="last-updated" class="text-sm text-gray-500">
           Last updated: Never
         </p>
@@ -224,14 +227,8 @@
     <script>
       // --- Firebase Configuration ---
       const firebaseConfig = {
-        apiKey: "AIzaSyByTRuHzdm_G__8qzKytgVucC_pF44Ufl0",
-        authDomain: "aksang-1-ea4e8.firebaseapp.com",
         databaseURL:
-          "https://aksang-1-ea4e8-default-rtdb.asia-southeast1.firebasedatabase.app",
-        projectId: "aksang-1-ea4e8",
-        storageBucket: "aksang-1-ea4e8.firebasestorage.app",
-        messagingSenderId: "706818406164",
-        appId: "1:706818406164:web:be417bc55686d997537401",
+          "https://aksang-1-ea4e8-default-rdb.asia-southeast1.firebasedatabase.app/",
       };
 
       // Initialize Firebase
@@ -255,9 +252,19 @@
 
       const statusText = document.getElementById("status-text");
       const lastUpdatedText = document.getElementById("last-updated");
+      const connectionStatus = document.getElementById("connection-status");
       const pumpControlCard = document.getElementById("pump-control-card");
       const pumpControlsContainer = document.getElementById("pump-controls");
       const pumpButtons = document.querySelectorAll(".pump-btn");
+
+      // Track current values to detect changes
+      let currentValues = {
+        Temperature: null,
+        Air_Humidity: null,
+        Soil_Humidity: null,
+        Brightness: null,
+        Pump_Condition: null,
+      };
 
       // --- Sound Effect Setup ---
       let clickSound;
@@ -281,53 +288,68 @@
       );
 
       /**
-       * Updates the dashboard with sensor data from Firebase
-       * @param {Object} data - The sensor data from Firebase
+       * Triggers the glow animation on a card
+       * @param {HTMLElement} card - The card element to animate
        */
-      function updateSensorData(data) {
-        if (data.Temperature !== undefined) {
-          temperatureValue.textContent = `${data.Temperature}°C`;
-          sensorCards.temp.classList.remove("card-glow");
-          void sensorCards.temp.offsetWidth;
-          sensorCards.temp.classList.add("card-glow");
-        }
+      function triggerCardGlow(card) {
+        card.classList.remove("card-glow");
+        void card.offsetWidth; // Trigger reflow
+        card.classList.add("card-glow");
+      }
 
-        if (data.Air_Humidity !== undefined) {
-          airHumidityValue.textContent = `${data.Air_Humidity}%`;
-          sensorCards.humidity.classList.remove("card-glow");
-          void sensorCards.humidity.offsetWidth;
-          sensorCards.humidity.classList.add("card-glow");
-        }
+      /**
+       * Updates a single sensor value on the dashboard
+       * @param {string} sensor - The sensor name (key in currentValues)
+       * @param {*} value - The new value
+       */
+      function updateSingleSensor(sensor, value) {
+        if (currentValues[sensor] === value) return; // No change
 
-        if (data.Soil_Humidity !== undefined) {
-          soilHumidityValue.textContent = `${data.Soil_Humidity}%`;
-          sensorCards.soil.classList.remove("card-glow");
-          void sensorCards.soil.offsetWidth;
-          sensorCards.soil.classList.add("card-glow");
-        }
-
-        if (data.Brightness !== undefined) {
-          // Convert negative brightness to "N/A" (as shown in your screenshot)
-          const lightValue =
-            data.Brightness >= 0 ? `${data.Brightness} lux` : "N/A";
-          lightIntensityValue.textContent = lightValue;
-          sensorCards.light.classList.remove("card-glow");
-          void sensorCards.light.offsetWidth;
-          sensorCards.light.classList.add("card-glow");
-        }
-
-        if (data.Pump_Condition !== undefined) {
-          // Update pump status based on the actual condition
-          if (data.Pump_Condition) {
-            statusText.textContent = "Pump Status: ON";
-            pumpControlCard.classList.add("pump-active");
-          } else {
-            statusText.textContent = "Pump Status: OFF";
-            pumpControlCard.classList.remove("pump-active");
-          }
-        }
-
+        currentValues[sensor] = value;
         lastUpdatedText.textContent = `Last updated: ${new Date().toLocaleTimeString()}`;
+
+        switch (sensor) {
+          case "Temperature":
+            temperatureValue.textContent = `${value}°C`;
+            triggerCardGlow(sensorCards.temp);
+            break;
+          case "Air_Humidity":
+            airHumidityValue.textContent = `${value}%`;
+            triggerCardGlow(sensorCards.humidity);
+            break;
+          case "Soil_Humidity":
+            soilHumidityValue.textContent = `${value}%`;
+            triggerCardGlow(sensorCards.soil);
+            break;
+          case "Brightness":
+            const lightValue = value >= 0 ? `${value} lux` : "N/A";
+            lightIntensityValue.textContent = lightValue;
+            triggerCardGlow(sensorCards.light);
+            break;
+          case "Pump_Condition":
+            // Update pump status based on the actual condition
+            if (value === true) {
+              statusText.textContent = "Pump Status: ON";
+              pumpControlCard.classList.add("pump-active");
+              // Update active button
+              pumpButtons.forEach((btn) => btn.classList.remove("active-btn"));
+              document.getElementById("pump-on").classList.add("active-btn");
+            } else if (value === false) {
+              statusText.textContent = "Pump Status: OFF";
+              pumpControlCard.classList.remove("pump-active");
+              // Update active button
+              pumpButtons.forEach((btn) => btn.classList.remove("active-btn"));
+              document.getElementById("pump-off").classList.add("active-btn");
+            } else {
+              statusText.textContent = "Pump Status: Auto";
+              // Update active button
+              pumpButtons.forEach((btn) => btn.classList.remove("active-btn"));
+              document
+                .getElementById("pump-default")
+                .classList.add("active-btn");
+            }
+            break;
+        }
       }
 
       /**
@@ -341,33 +363,31 @@
           clickSound.triggerAttackRelease("C5", "8n");
         }
 
-        // Update button styles
-        pumpButtons.forEach((btn) => btn.classList.remove("active-btn"));
-        clickedButton.classList.add("active-btn");
-
         // Update pump status in Firebase
         let pumpStatus;
         switch (clickedButton.id) {
           case "pump-on":
-            statusText.textContent = "Pump Status: ON (Manual)";
-            pumpControlCard.classList.add("pump-active");
             pumpStatus = true;
             break;
           case "pump-off":
-            statusText.textContent = "Pump Status: OFF (Manual)";
-            pumpControlCard.classList.remove("pump-active");
             pumpStatus = false;
             break;
           case "pump-default":
           default:
-            statusText.textContent = "Pump Status: Default (Auto)";
-            // Set to null to indicate automatic control
-            pumpStatus = null;
+            pumpStatus = null; // null indicates automatic control
             break;
         }
 
         // Update Firebase with the new pump status
-        database.ref("data/Pump_Condition").set(pumpStatus);
+        database
+          .ref("data/Pump_Condition")
+          .set(pumpStatus)
+          .then(() => {
+            console.log("Pump status updated successfully");
+          })
+          .catch((error) => {
+            console.error("Error updating pump status:", error);
+          });
       }
 
       // Add single event listener to the container for efficiency
@@ -375,12 +395,33 @@
 
       // --- Initialize Firebase Listeners ---
       function initializeFirebaseListeners() {
-        // Listen for changes in the data node
-        database.ref("data").on("value", (snapshot) => {
-          const data = snapshot.val();
-          if (data) {
-            updateSensorData(data);
+        // Listen for connection state changes
+        database.ref(".info/connected").on("value", (snapshot) => {
+          if (snapshot.val() === true) {
+            connectionStatus.textContent = "Connected to Firebase";
+            connectionStatus.className = "text-sm text-green-400";
+          } else {
+            connectionStatus.textContent = "Disconnected from Firebase";
+            connectionStatus.className = "text-sm text-red-400";
           }
+        });
+
+        // Set up individual listeners for each sensor
+        const sensors = [
+          "Temperature",
+          "Air_Humidity",
+          "Soil_Humidity",
+          "Brightness",
+          "Pump_Condition",
+        ];
+
+        sensors.forEach((sensor) => {
+          database.ref(`data/${sensor}`).on("value", (snapshot) => {
+            const value = snapshot.val();
+            if (value !== null) {
+              updateSingleSensor(sensor, value);
+            }
+          });
         });
 
         // Check initial pump status to set the correct button as active
@@ -401,7 +442,7 @@
               document
                 .getElementById("pump-default")
                 .classList.add("active-btn");
-              statusText.textContent = "Pump Status: Default (Auto)";
+              statusText.textContent = "Pump Status: Auto";
             }
           });
       }
