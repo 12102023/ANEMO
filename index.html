@@ -1,8 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
   <head>
-    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Advanced IoT Dashboard</title>
@@ -20,61 +18,38 @@
         background-image: radial-gradient(#1a1a1a 1px, transparent 1px);
         background-size: 20px 20px;
       }
-      /* Animation for the pulsing pump status */
-      @keyframes pulse-bg {
-        0% {
-          box-shadow: 0 0 8px rgba(250, 204, 21, 0.3);
-        }
-        50% {
-          box-shadow: 0 0 20px rgba(250, 204, 21, 0.6);
-        }
-        100% {
-          box-shadow: 0 0 8px rgba(250, 204, 21, 0.3);
-        }
-      }
-      .pump-active {
-        animation: pulse-bg 2s infinite ease-in-out;
-      }
-      /* Custom styles for the pump control buttons */
-      .pump-btn {
-        padding: 0.5rem 1rem;
-        border-radius: 0.375rem;
-        font-weight: 600;
-        color: #d1d5db; /* gray-300 */
-        transition: all 0.2s ease-in-out;
-        border: 2px solid transparent;
-        background-color: #4b5563; /* gray-600 */
-      }
-      .pump-btn.active-btn {
-        background-color: #facc15; /* yellow-400 */
-        color: #1f2937; /* gray-800 */
-        box-shadow: 0 0 10px rgba(250, 204, 21, 0.5);
-      }
-      .pump-btn:not(.active-btn):hover {
-        background-color: #6b7280; /* gray-500 */
+      /* Tooltip arrow */
+      #pump-description-container.visible::before {
+        content: "";
+        position: absolute;
+        top: -8px; /* Position arrow above the box */
+        left: var(--arrow-left-position, 50%);
+        transform: translateX(-50%);
+        border-width: 8px;
+        border-style: solid;
+        border-color: transparent transparent #374151 transparent; /* gray-700 */
       }
     </style>
   </head>
   <body class="text-white flex items-center justify-center min-h-screen p-4">
     <div
-      class="w-full max-w-2xl mx-auto bg-gray-900/80 backdrop-blur-sm border border-gray-700 rounded-2xl shadow-2xl p-6 md:p-8 space-y-8"
+      class="w-full max-w-2xl mx-auto bg-gray-900/80 backdrop-blur-sm border border-gray-700 rounded-2xl shadow-2xl p-4 sm:p-6 space-y-6"
     >
       <!-- Header -->
       <div>
-        <h1 class="text-3xl font-bold text-center text-gray-100">
+        <h1 class="text-2xl sm:text-3xl font-bold text-center text-gray-100">
           Advanced IoT Dashboard
         </h1>
         <p
           id="status-text"
           class="text-center text-yellow-400 font-medium mt-2 transition-colors duration-300"
         >
-          Pump Status: Connecting...
+          Pump Mode: Loading...
         </p>
       </div>
 
       <!-- Sensor Readings Grid -->
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-6 text-center">
-        <!-- Temperature Card -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 text-center">
         <div
           id="temp-card"
           class="bg-gray-800/50 p-4 rounded-xl flex flex-col items-center justify-center space-y-2 border border-gray-700"
@@ -96,12 +71,13 @@
             </svg>
             <h2 class="text-lg font-semibold text-gray-300">Temperature</h2>
           </div>
-          <p id="temperature-value" class="text-4xl font-bold text-gray-50">
+          <p
+            id="temperature-value"
+            class="text-3xl sm:text-4xl font-bold text-gray-50"
+          >
             --°C
           </p>
         </div>
-
-        <!-- Air Humidity Card -->
         <div
           id="humidity-card"
           class="bg-gray-800/50 p-4 rounded-xl flex flex-col items-center justify-center space-y-2 border border-gray-700"
@@ -123,20 +99,22 @@
             </svg>
             <h2 class="text-lg font-semibold text-gray-300">Air Humidity</h2>
           </div>
-          <p id="air-humidity-value" class="text-4xl font-bold text-gray-50">
+          <p
+            id="air-humidity-value"
+            class="text-3xl sm:text-4xl font-bold text-gray-50"
+          >
             --%
           </p>
         </div>
-
-        <!-- Soil Humidity Card -->
         <div
           id="soil-card"
           class="bg-gray-800/50 p-4 rounded-xl flex flex-col items-center justify-center space-y-2 border border-gray-700"
         >
           <div class="flex items-center space-x-2">
             <svg
+              id="soil-humidity-icon"
               xmlns="http://www.w3.org/2000/svg"
-              class="h-7 w-7 text-yellow-400"
+              class="h-7 w-7 text-yellow-400 transition-colors"
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
@@ -148,14 +126,20 @@
                 d="M3 15a4 4 0 0 0 4 4h9a5 5 0 1 0-.1-9.999 5.002 5.002 0 1 0-9.78 2.096A4.001 4.001 0 0 0 3 15z"
               />
             </svg>
-            <h2 class="text-lg font-semibold text-gray-300">Soil Humidity</h2>
+            <h2
+              id="soil-humidity-label"
+              class="text-lg font-semibold text-gray-300 transition-colors"
+            >
+              Soil Humidity
+            </h2>
           </div>
-          <p id="soil-humidity-value" class="text-4xl font-bold text-gray-50">
+          <p
+            id="soil-humidity-value"
+            class="text-3xl sm:text-4xl font-bold text-gray-50"
+          >
             --%
           </p>
         </div>
-
-        <!-- Light Intensity Card -->
         <div
           id="light-card"
           class="bg-gray-800/50 p-4 rounded-xl flex flex-col items-center justify-center space-y-2 border border-gray-700"
@@ -177,41 +161,171 @@
             </svg>
             <h2 class="text-lg font-semibold text-gray-300">Light Intensity</h2>
           </div>
-          <p id="light-intensity-value" class="text-4xl font-bold text-gray-50">
+          <p
+            id="light-intensity-value"
+            class="text-3xl sm:text-4xl font-bold text-gray-50"
+          >
             -- lux
           </p>
         </div>
       </div>
 
-      <!-- Pump Control -->
-      <div
-        id="pump-control-card"
-        class="bg-gray-800/50 p-6 rounded-xl flex items-center justify-between border border-gray-700 transition-all duration-300"
-      >
-        <h2 class="text-xl font-semibold text-gray-300">Pump Control</h2>
+      <!-- Controls Grid -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div
-          id="pump-controls"
-          class="flex space-x-2 rounded-lg bg-gray-700 p-1"
+          class="bg-gray-800/50 p-4 sm:p-6 rounded-xl border border-gray-700 space-y-4"
         >
-          <button id="pump-auto" class="pump-btn">Auto</button>
-          <button id="pump-on" class="pump-btn">On</button>
-          <button id="pump-off" class="pump-btn">Off</button>
+          <h2 class="text-lg sm:text-xl font-semibold text-gray-300">
+            Soil Moisture Thresholds
+          </h2>
+          <div class="flex items-center gap-4">
+            <div class="w-full">
+              <label
+                for="lower-threshold"
+                class="text-sm font-medium text-gray-400"
+                >Lower (%)</label
+              ><input
+                type="number"
+                id="lower-threshold"
+                class="threshold-input"
+              />
+            </div>
+            <div class="w-full">
+              <label
+                for="upper-threshold"
+                class="text-sm font-medium text-gray-400"
+                >Upper (%)</label
+              ><input
+                type="number"
+                id="upper-threshold"
+                class="threshold-input"
+              />
+            </div>
+          </div>
+          <div class="flex items-center gap-2 pt-2">
+            <button
+              id="set-thresholds"
+              class="control-btn bg-yellow-500 hover:bg-yellow-600 text-gray-900 w-full"
+            >
+              Set</button
+            ><button
+              id="reset-thresholds"
+              class="control-btn bg-gray-600 hover:bg-gray-700 w-full"
+            >
+              Reset
+            </button>
+          </div>
+          <p
+            id="threshold-status"
+            class="text-center text-sm text-gray-500 h-4"
+          ></p>
+        </div>
+        <div
+          class="bg-gray-800/50 p-4 sm:p-6 rounded-xl border border-gray-700 space-y-4"
+        >
+          <h2 class="text-lg sm:text-xl font-semibold text-gray-300">
+            Periodic Watering Schedule
+          </h2>
+          <div id="time-list" class="space-y-3">
+            <!-- Time Slot 1 -->
+            <div class="flex items-center justify-between gap-4">
+              <input
+                type="time"
+                id="time-1"
+                class="threshold-input w-full"
+              /><label class="relative inline-flex items-center cursor-pointer"
+                ><input
+                  type="checkbox"
+                  id="toggle-1"
+                  class="sr-only peer time-toggle" />
+                <div
+                  class="w-11 h-6 bg-gray-600 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-yellow-500"
+                ></div
+              ></label>
+            </div>
+            <!-- Time Slot 2 -->
+            <div class="flex items-center justify-between gap-4">
+              <input
+                type="time"
+                id="time-2"
+                class="threshold-input w-full"
+              /><label class="relative inline-flex items-center cursor-pointer"
+                ><input
+                  type="checkbox"
+                  id="toggle-2"
+                  class="sr-only peer time-toggle" />
+                <div
+                  class="w-11 h-6 bg-gray-600 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-yellow-500"
+                ></div
+              ></label>
+            </div>
+          </div>
+          <div class="flex items-center gap-2 pt-2">
+            <button
+              id="set-schedule"
+              class="control-btn bg-yellow-500 hover:bg-yellow-600 text-gray-900 w-full"
+            >
+              Set Schedule
+            </button>
+          </div>
+          <p id="time-status" class="text-center text-sm text-gray-500 h-4"></p>
         </div>
       </div>
 
-      <!-- Connection Status -->
-      <div class="text-center">
-        <p id="connection-status" class="text-sm text-yellow-400">
-          Connecting to Firebase...
-        </p>
-        <p id="last-updated" class="text-sm text-gray-500">
-          Last updated: Never
+      <!-- Pump Control -->
+      <div class="relative space-y-3">
+        <div
+          id="pump-control-card"
+          class="bg-gray-800/50 p-4 sm:p-6 rounded-xl flex flex-col sm:flex-row items-center justify-between border border-gray-700 transition-all duration-300 space-y-4 sm:space-y-0"
+        >
+          <div class="flex items-center gap-3">
+            <h2 class="text-lg sm:text-xl font-semibold text-gray-300">
+              Pump Control
+            </h2>
+            <div
+              id="pump-live-status"
+              class="flex items-center gap-2 text-sm font-bold"
+            >
+              <span class="h-3 w-3 rounded-full bg-gray-500"></span
+              ><span>OFF</span>
+            </div>
+          </div>
+          <div
+            id="pump-controls"
+            class="flex space-x-1 sm:space-x-2 rounded-lg bg-gray-700 p-1"
+          >
+            <button id="pump-auto" class="pump-btn">Auto</button>
+            <button id="pump-periodically" class="pump-btn">
+              Periodically
+            </button>
+            <button id="pump-on" class="pump-btn">On</button>
+            <button id="pump-off" class="pump-btn">Off</button>
+          </div>
+        </div>
+        <div
+          id="pump-description-container"
+          class="relative opacity-0 transition-opacity duration-300"
+        >
+          <p
+            id="pump-description"
+            class="text-center bg-gray-700 p-3 rounded-md text-gray-300 text-sm h-auto"
+          ></p>
+        </div>
+      </div>
+
+      <!-- Footer with Connection Status -->
+      <div class="text-center pt-4 space-y-1">
+        <p id="connection-status" class="text-sm font-bold">Connecting...</p>
+        <p id="last-updated-timestamp" class="text-sm text-gray-400">
+          Waiting for data...
         </p>
       </div>
     </div>
 
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
     <script>
-      // --- Firebase Configuration ---
+      // Firebase configuration
       const firebaseConfig = {
         apiKey: "AIzaSyByTRuHzdm_G__8qzKytgVucC_pF44Ufl0",
         authDomain: "aksang-1-ea4e8.firebaseapp.com",
@@ -227,30 +341,49 @@
       const app = firebase.initializeApp(firebaseConfig);
       const database = firebase.database();
 
-      // --- DOM Element References ---
-      const temperatureValue = document.getElementById("temperature-value");
-      const airHumidityValue = document.getElementById("air-humidity-value");
-      const soilHumidityValue = document.getElementById("soil-humidity-value");
-      const lightIntensityValue = document.getElementById("light-intensity-value");
-
-      const statusText = document.getElementById("status-text");
-      const lastUpdatedText = document.getElementById("last-updated");
-      const connectionStatus = document.getElementById("connection-status");
-      const pumpControlCard = document.getElementById("pump-control-card");
+      // DOM Element References
+      const soilHumidityIcon = document.getElementById("soil-humidity-icon");
+      const soilHumidityLabel = document.getElementById("soil-humidity-label");
+      const lowerThresholdInput = document.getElementById("lower-threshold");
+      const upperThresholdInput = document.getElementById("upper-threshold");
+      const setThresholdsBtn = document.getElementById("set-thresholds");
+      const resetThresholdsBtn = document.getElementById("reset-thresholds");
+      const thresholdStatusText = document.getElementById("threshold-status");
+      const timeInputs = [
+        document.getElementById("time-1"),
+        document.getElementById("time-2"),
+      ];
+      const toggleInputs = [
+        document.getElementById("toggle-1"),
+        document.getElementById("toggle-2"),
+      ];
+      const setScheduleBtn = document.getElementById("set-schedule");
+      const timeStatusText = document.getElementById("time-status");
       const pumpControlsContainer = document.getElementById("pump-controls");
-      const pumpButtons = document.querySelectorAll(".pump-btn");
+      const pumpDescriptionContainer = document.getElementById(
+        "pump-description-container"
+      );
+      const pumpDescription = document.getElementById("pump-description");
+      const connectionStatus = document.getElementById("connection-status");
+      const lastUpdatedTimestamp = document.getElementById(
+        "last-updated-timestamp"
+      );
+      const pumpLiveStatus = document.getElementById("pump-live-status");
+      const statusText = document.getElementById("status-text");
 
-      // Track current values to detect changes
-      let currentValues = {
-        Temperature: null,
-        Air_Humidity: null,
-        Soil_Humidity: null,
-        Brightness: null,
-        Pump_Condition: null,
-        isAuto: null
+      // Default values
+      const DEFAULT_THRESHOLDS = { lower: 40, upper: 60 };
+      let currentThresholds = { ...DEFAULT_THRESHOLDS };
+      
+      const PUMP_DESCRIPTIONS = {
+        auto: "Waters the plant based on the set soil moisture thresholds.",
+        periodically:
+          "Waters the plant for 20 seconds once every day at the activated times.",
+        on: "Turns the pump on indefinitely.",
+        off: "Turns the pump off indefinitely.",
       };
 
-      // --- Sound Effect Setup ---
+      // Sound Effect Setup
       let clickSound;
       document.body.addEventListener(
         "mousedown",
@@ -270,151 +403,253 @@
         { once: true }
       );
 
-      /**
-       * Updates the UI based on the current pump state and auto mode
-       */
-      function updatePumpUI() {
-        // Update button states
-        pumpButtons.forEach(btn => btn.classList.remove("active-btn"));
+      // UI Update Functions
+      function updateSensorUI(data) {
+        if (!data) return;
         
-        if (currentValues.isAuto) {
-          document.getElementById("pump-auto").classList.add("active-btn");
-          statusText.textContent = "Pump Status: Auto Mode";
-          // Keep pump animation based on actual pump state
-          if (currentValues.Pump_Condition) {
-            pumpControlCard.classList.add("pump-active");
-          } else {
-            pumpControlCard.classList.remove("pump-active");
-          }
+        document.getElementById("temperature-value").textContent = `${data.Temperature || "--"}°C`;
+        document.getElementById("air-humidity-value").textContent = `${data.Air_Humidity || "--"}%`;
+        document.getElementById("soil-humidity-value").textContent = `${data.Soil_Humidity || "--"}%`;
+        document.getElementById("light-intensity-value").textContent = `${data.Brightness || "--"} lux`;
+        
+        lastUpdatedTimestamp.textContent = `Last updated: ${new Date().toLocaleString("en-US", {
+          dateStyle: "medium",
+          timeStyle: "short",
+        })}`;
+        
+        if (data.Soil_Humidity !== undefined && data.Soil_Humidity < currentThresholds.lower) {
+          soilHumidityIcon.classList.remove("text-yellow-400");
+          soilHumidityIcon.classList.add("text-red-500");
+          soilHumidityLabel.classList.add("text-red-500");
         } else {
-          if (currentValues.Pump_Condition) {
-            document.getElementById("pump-on").classList.add("active-btn");
-            statusText.textContent = "Pump Status: ON (Manual)";
-            pumpControlCard.classList.add("pump-active");
-          } else {
-            document.getElementById("pump-off").classList.add("active-btn");
-            statusText.textContent = "Pump Status: OFF (Manual)";
-            pumpControlCard.classList.remove("pump-active");
-          }
+          soilHumidityIcon.classList.remove("text-red-500");
+          soilHumidityIcon.classList.add("text-yellow-400");
+          soilHumidityLabel.classList.remove("text-red-500");
         }
       }
 
-      /**
-       * Updates a single sensor value on the dashboard
-       * @param {string} sensor - The sensor name (key in currentValues)
-       * @param {*} value - The new value
-       */
-      function updateSingleSensor(sensor, value) {
-        if (currentValues[sensor] === value) return; // No change
+      function updatePumpUI(mode) {
+        if (!mode) return;
         
-        currentValues[sensor] = value;
-        lastUpdatedText.textContent = `Last updated: ${new Date().toLocaleTimeString()}`;
+        document.querySelectorAll(".pump-btn").forEach((btn) => btn.classList.remove("active-btn"));
+        
+        let modeText = "";
+        switch(mode) {
+          case 1:
+            modeText = "auto";
+            document.getElementById("pump-auto").classList.add("active-btn");
+            statusText.textContent = "Pump Mode: Auto";
+            break;
+          case 2:
+            modeText = "periodically";
+            document.getElementById("pump-periodically").classList.add("active-btn");
+            statusText.textContent = "Pump Mode: Periodically";
+            break;
+          case 3:
+            modeText = "on";
+            document.getElementById("pump-on").classList.add("active-btn");
+            statusText.textContent = "Pump Mode: On";
+            break;
+          case 4:
+            modeText = "off";
+            document.getElementById("pump-off").classList.add("active-btn");
+            statusText.textContent = "Pump Mode: Off";
+            break;
+        }
+        
+        const activeButton = document.querySelector(".pump-btn.active-btn");
+        if (activeButton) {
+          const containerRect = pumpControlsContainer.getBoundingClientRect();
+          const buttonRect = activeButton.getBoundingClientRect();
+          const arrowPosition = buttonRect.left - containerRect.left + buttonRect.width / 2;
+          pumpDescriptionContainer.style.setProperty("--arrow-left-position", `${arrowPosition}px`);
+        }
+        
+        pumpDescription.textContent = PUMP_DESCRIPTIONS[modeText] || "";
+        pumpDescriptionContainer.classList.add("visible");
+        pumpDescriptionContainer.style.opacity = 1;
+      }
 
-        switch (sensor) {
-          case 'Temperature':
-            temperatureValue.textContent = `${value}°C`;
-            break;
-          case 'Air_Humidity':
-            airHumidityValue.textContent = `${value}%`;
-            break;
-          case 'Soil_Humidity':
-            soilHumidityValue.textContent = `${value}%`;
-            break;
-          case 'Brightness':
-            const lightValue = value >= 0 ? `${value} lux` : "N/A";
-            lightIntensityValue.textContent = lightValue;
-            break;
-          case 'Pump_Condition':
-            updatePumpUI();
-            break;
-          case 'isAuto':
-            updatePumpUI();
-            break;
+      function updatePumpConditionUI(isOn) {
+        const statusDot = pumpLiveStatus.querySelector("span");
+        const statusText = pumpLiveStatus.childNodes[1];
+        if (isOn) {
+          statusDot.className = "h-3 w-3 rounded-full bg-green-500";
+          statusText.textContent = "ON";
+        } else {
+          statusDot.className = "h-3 w-3 rounded-full bg-gray-500";
+          statusText.textContent = "OFF";
         }
       }
 
-      /**
-       * Handles clicks on the pump control buttons.
-       */
+      function updateThresholdUI(data) {
+        if (!data) return;
+        currentThresholds = { lower: data.lower, upper: data.upper };
+        lowerThresholdInput.value = data.lower || "";
+        upperThresholdInput.value = data.upper || "";
+      }
+
+      // Database Interaction Functions
+      function setThresholds(lower, upper) {
+        thresholdStatusText.textContent = "Saving...";
+        database.ref("treshold").set({
+          lower: parseInt(lower, 10),
+          upper: parseInt(upper, 10)
+        }).then(() => {
+          thresholdStatusText.textContent = "Saved successfully!";
+          setTimeout(() => (thresholdStatusText.textContent = ""), 2000);
+        }).catch((error) => {
+          console.error("Error setting thresholds:", error);
+          thresholdStatusText.textContent = "Save failed.";
+          setTimeout(() => (thresholdStatusText.textContent = ""), 2000);
+        });
+      }
+
+      function setPumpMode(mode) {
+        database.ref("data/Pump_mode").set(mode).catch((error) => {
+          console.error("Error setting pump mode:", error);
+        });
+      }
+
+      // Event Handlers
+      function handleSetThresholds() {
+        const lower = parseInt(lowerThresholdInput.value, 10);
+        const upper = parseInt(upperThresholdInput.value, 10);
+        if (isNaN(lower) || isNaN(upper)) {
+          thresholdStatusText.textContent = "Please enter valid numbers.";
+          setTimeout(() => (thresholdStatusText.textContent = ""), 2000);
+          return;
+        }
+        setThresholds(lower, upper);
+      }
+
+      function handleResetThresholds() {
+        setThresholds(DEFAULT_THRESHOLDS.lower, DEFAULT_THRESHOLDS.upper);
+      }
+
       function handlePumpSelection(event) {
         const clickedButton = event.target.closest(".pump-btn");
         if (!clickedButton) return;
-
-        if (clickSound) {
-          clickSound.triggerAttackRelease("C5", "8n");
-        }
-
-        // Determine which action to take
-        if (clickedButton.id === "pump-auto") {
-          // Toggle auto mode
-          const newAutoState = !currentValues.isAuto;
-          database.ref('data/isAuto').set(newAutoState)
-            .then(() => {
-              console.log("Auto mode set to:", newAutoState);
-            })
-            .catch((error) => {
-              console.error("Error updating auto mode:", error);
-            });
-        } else {
-          // Manual control - turn auto mode off
-          database.ref('data/isAuto').set(false)
-            .then(() => {
-              // Now set the pump state
-              let pumpStatus;
-              if (clickedButton.id === "pump-on") {
-                pumpStatus = true;
-              } else {
-                pumpStatus = false;
-              }
-              return database.ref('data/Pump_Condition').set(pumpStatus);
-            })
-            .then(() => {
-              console.log("Pump status updated successfully");
-            })
-            .catch((error) => {
-              console.error("Error updating pump status:", error);
-            });
-        }
+        if (clickSound) clickSound.triggerAttackRelease("C5", "8n");
+        
+        let mode;
+        if (clickedButton.id === "pump-auto") mode = 1;
+        else if (clickedButton.id === "pump-periodically") mode = 2;
+        else if (clickedButton.id === "pump-on") mode = 3;
+        else if (clickedButton.id === "pump-off") mode = 4;
+        
+        if (mode) setPumpMode(mode);
       }
 
-      // Add single event listener to the container for efficiency
-      pumpControlsContainer.addEventListener("click", handlePumpSelection);
-
-      // --- Initialize Firebase Listeners ---
-      function initializeFirebaseListeners() {
-        // Listen for connection state changes
-        database.ref('.info/connected').on('value', (snapshot) => {
-          if (snapshot.val() === true) {
-            connectionStatus.textContent = "Connected to Firebase";
-            connectionStatus.className = "text-sm text-green-400";
-          } else {
-            connectionStatus.textContent = "Disconnected from Firebase";
-            connectionStatus.className = "text-sm text-red-400";
+      // Initialize Firebase listeners
+      function initializeListeners() {
+        // Sensor data listener
+        database.ref("data").on("value", (snapshot) => {
+          const data = snapshot.val();
+          updateSensorUI(data);
+          
+          if (data && data.Pump_Condition !== undefined) {
+            updatePumpConditionUI(data.Pump_Condition);
           }
+          
+          if (data && data.Pump_mode !== undefined) {
+            updatePumpUI(data.Pump_mode);
+          }
+          
+          connectionStatus.textContent = "Connected to Firebase";
+          connectionStatus.className = "text-sm font-bold text-green-500";
+        }, (error) => {
+          console.error("Error reading sensor data:", error);
+          connectionStatus.textContent = "Disconnected from Firebase";
+          connectionStatus.className = "text-sm font-bold text-red-500";
         });
 
-        // Set up individual listeners for each sensor
-        const sensors = [
-          'Temperature', 
-          'Air_Humidity', 
-          'Soil_Humidity', 
-          'Brightness', 
-          'Pump_Condition',
-          'isAuto'
-        ];
-        
-        sensors.forEach(sensor => {
-          database.ref(`data/${sensor}`).on('value', (snapshot) => {
-            const value = snapshot.val();
-            if (value !== null) {
-              updateSingleSensor(sensor, value);
+        // Threshold listener
+        database.ref("treshold").on("value", (snapshot) => {
+          const data = snapshot.val();
+          updateThresholdUI(data);
+        }, (error) => {
+          console.error("Error reading thresholds:", error);
+        });
+      }
+
+      // Initialize the app
+      function initializeApp() {
+        try {
+          initializeListeners();
+          
+          // Set default thresholds if not set
+          database.ref("treshold").once("value").then((snapshot) => {
+            if (!snapshot.exists()) {
+              setThresholds(DEFAULT_THRESHOLDS.lower, DEFAULT_THRESHOLDS.upper);
             }
           });
-        });
+          
+          // Set default pump mode if not set
+          database.ref("data/Pump_mode").once("value").then((snapshot) => {
+            if (!snapshot.exists()) {
+              setPumpMode(1); // Default to Auto
+            }
+          });
+          
+          // Set default pump condition if not set
+          database.ref("data/Pump_Condition").once("value").then((snapshot) => {
+            if (!snapshot.exists()) {
+              database.ref("data/Pump_Condition").set(false);
+            }
+          });
+        } catch (error) {
+          console.error("Initialization failed:", error);
+          connectionStatus.textContent = "Initialization failed";
+          connectionStatus.className = "text-sm font-bold text-red-500";
+        }
       }
 
-      // Initialize the dashboard
-      initializeFirebaseListeners();
+      // Event Listeners
+      setThresholdsBtn.addEventListener("click", handleSetThresholds);
+      resetThresholdsBtn.addEventListener("click", handleResetThresholds);
+      pumpControlsContainer.addEventListener("click", handlePumpSelection);
+
+      // Initialize the application
+      initializeApp();
     </script>
+    <style>
+      .threshold-input {
+        background-color: #374151;
+        border: 1px solid #4b5563;
+        border-radius: 0.375rem;
+        padding: 0.5rem;
+        width: 100%;
+        color: #e5e7eb;
+      }
+      .threshold-input::-webkit-calendar-picker-indicator {
+        filter: invert(1);
+        cursor: pointer;
+      }
+      .control-btn {
+        padding: 0.75rem 1rem;
+        border-radius: 0.375rem;
+        font-weight: 600;
+        transition: all 0.2s ease-in-out;
+      }
+      .pump-btn {
+        padding: 0.5rem 1rem;
+        border-radius: 0.375rem;
+        font-weight: 600;
+        color: #d1d5db;
+        transition: all 0.2s ease-in-out;
+        border: 2px solid transparent;
+        flex-shrink: 0;
+        position: relative;
+      }
+      .pump-btn.active-btn {
+        background-color: #facc15;
+        color: #1f2937;
+        box-shadow: 0 0 10px rgba(250, 204, 21, 0.5);
+      }
+      .pump-btn:not(.active-btn):hover {
+        background-color: #4b5563;
+      }
+    </style>
   </body>
 </html>
