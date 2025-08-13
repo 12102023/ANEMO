@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Advanced IoT Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Tone.js for sound effects -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.7.77/Tone.js"></script>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      body {
+        font-family: "Inter", sans-serif;
+        background-color: #0a0a0a;
+        background-image: radial-gradient(#1a1a1a 1px, transparent 1px);
+        background-size: 20px 20px;
+      }
+      /* Animation for the card glow effect on update */
+      @keyframes glow {
+        0% {
+          box-shadow: 0 0 0px rgba(250, 204, 21, 0);
+        } /* yellow-400 */
+        50% {
+          box-shadow: 0 0 15px rgba(250, 204, 21, 0.4);
+        }
+        100% {
+          box-shadow: 0 0 0px rgba(250, 204, 21, 0);
+        }
+      }
+      .card-glow {
+        animation: glow 1.5s ease-in-out;
+      }
+      /* Animation for the pulsing pump status */
+      @keyframes pulse-bg {
+        0% {
+          box-shadow: 0 0 8px rgba(250, 204, 21, 0.3);
+        } /* yellow-400 */
+        50% {
+          box-shadow: 0 0 20px rgba(250, 204, 21, 0.6);
+        }
+        100% {
+          box-shadow: 0 0 8px rgba(250, 204, 21, 0.3);
+        }
+      }
+      .pump-active {
+        animation: pulse-bg 2s infinite ease-in-out;
+      }
+      /* Custom styles for the pump control buttons */
+      .pump-btn {
+        padding: 0.5rem 1rem;
+        border-radius: 0.375rem; /* rounded-md */
+        font-weight: 600; /* font-semibold */
+        color: #d1d5db; /* gray-300 */
+        transition: all 0.2s ease-in-out;
+        border: 2px solid transparent;
+      }
+      .pump-btn.active-btn {
+        background-color: #facc15; /* yellow-400 */
+        color: #1f2937; /* gray-800 */
+        box-shadow: 0 0 10px rgba(250, 204, 21, 0.5);
+      }
+      .pump-btn:not(.active-btn):hover {
+        background-color: #4b5563; /* gray-600 */
+      }
+    </style>
+  </head>
+  <body class="text-white flex items-center justify-center min-h-screen p-4">
+    <div
+      class="w-full max-w-2xl mx-auto bg-gray-900/80 backdrop-blur-sm border border-gray-700 rounded-2xl shadow-2xl p-6 md:p-8 space-y-8"
+    >
+      <!-- Header -->
+      <div>
+        <h1 class="text-3xl font-bold text-center text-gray-100">
+          Advanced IoT Dashboard
+        </h1>
+        <p
+          id="status-text"
+          class="text-center text-yellow-400 font-medium mt-2 transition-colors duration-300"
+        >
+          Pump Mode: Default
+        </p>
+      </div>
+
+      <!-- Sensor Readings Grid -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-6 text-center">
+        <!-- Temperature Card -->
+        <div
+          id="temp-card"
+          class="bg-gray-800/50 p-4 rounded-xl flex flex-col items-center justify-center space-y-2 border border-gray-700"
+        >
+          <div class="flex items-center space-x-2">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              class="h-7 w-7 text-yellow-400"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                d="M14 4v10.54a4 4 0 1 1-4 0V4a2 2 0 0 1 4 0z"
+              />
+            </svg>
+            <h2 class="text-lg font-semibold text-gray-300">Temperature</h2>
+          </div>
+          <p id="temperature-value" class="text-4xl font-bold text-gray-50">
+            --°C
+          </p>
+        </div>
+
+        <!-- Air Humidity Card -->
+        <div
+          id="humidity-card"
+          class="bg-gray-800/50 p-4 rounded-xl flex flex-col items-center justify-center space-y-2 border border-gray-700"
+        >
+          <div class="flex items-center space-x-2">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              class="h-7 w-7 text-yellow-400"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                d="M12 22a7 7 0 0 0 7-7c0-2-1-3.9-3-5.5S13.5 5.5 13 3c-.5 2.5-2 4.9-4 6.5C7 11.1 6 13 6 15a7 7 0 0 0 6 7z"
+              />
+            </svg>
+            <h2 class="text-lg font-semibold text-gray-300">Air Humidity</h2>
+          </div>
+          <p id="air-humidity-value" class="text-4xl font-bold text-gray-50">
+            --%
+          </p>
+        </div>
+
+        <!-- Soil Humidity Card -->
+        <div
+          id="soil-card"
+          class="bg-gray-800/50 p-4 rounded-xl flex flex-col items-center justify-center space-y-2 border border-gray-700"
+        >
+          <div class="flex items-center space-x-2">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              class="h-7 w-7 text-yellow-400"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                d="M3 15a4 4 0 0 0 4 4h9a5 5 0 1 0-.1-9.999 5.002 5.002 0 1 0-9.78 2.096A4.001 4.001 0 0 0 3 15z"
+              />
+            </svg>
+            <h2 class="text-lg font-semibold text-gray-300">Soil Humidity</h2>
+          </div>
+          <p id="soil-humidity-value" class="text-4xl font-bold text-gray-50">
+            --%
+          </p>
+        </div>
+
+        <!-- Light Intensity Card -->
+        <div
+          id="light-card"
+          class="bg-gray-800/50 p-4 rounded-xl flex flex-col items-center justify-center space-y-2 border border-gray-700"
+        >
+          <div class="flex items-center space-x-2">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              class="h-7 w-7 text-yellow-400"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 1 1-8 0 4 4 0 0 1 8 0z"
+              />
+            </svg>
+            <h2 class="text-lg font-semibold text-gray-300">Light Intensity</h2>
+          </div>
+          <p id="light-intensity-value" class="text-4xl font-bold text-gray-50">
+            -- lux
+          </p>
+        </div>
+      </div>
+
+      <!-- Pump Control -->
+      <div
+        id="pump-control-card"
+        class="bg-gray-800/50 p-6 rounded-xl flex items-center justify-between border border-gray-700 transition-all duration-300"
+      >
+        <h2 class="text-xl font-semibold text-gray-300">Pump Control</h2>
+        <div
+          id="pump-controls"
+          class="flex space-x-2 rounded-lg bg-gray-700 p-1"
+        >
+          <button id="pump-default" class="pump-btn active-btn">Default</button>
+          <button id="pump-on" class="pump-btn">On</button>
+          <button id="pump-off" class="pump-btn">Off</button>
+        </div>
+      </div>
+
+      <!-- Footer with Last Updated Timestamp -->
+      <div class="text-center">
+        <p id="last-updated" class="text-sm text-gray-500">
+          Last updated: Never
+        </p>
+      </div>
+    </div>
+
+    <script>
+      // --- Firebase Configuration ---
+      const firebaseConfig = {
+        apiKey: "AIzaSyByTRuHzdm_G__8qzKytgVucC_pF44Ufl0",
+        authDomain: "aksang-1-ea4e8.firebaseapp.com",
+        databaseURL:
+          "https://aksang-1-ea4e8-default-rtdb.asia-southeast1.firebasedatabase.app",
+        projectId: "aksang-1-ea4e8",
+        storageBucket: "aksang-1-ea4e8.firebasestorage.app",
+        messagingSenderId: "706818406164",
+        appId: "1:706818406164:web:be417bc55686d997537401",
+      };
+
+      // Initialize Firebase
+      const app = firebase.initializeApp(firebaseConfig);
+      const database = firebase.database();
+
+      // --- DOM Element References ---
+      const temperatureValue = document.getElementById("temperature-value");
+      const airHumidityValue = document.getElementById("air-humidity-value");
+      const soilHumidityValue = document.getElementById("soil-humidity-value");
+      const lightIntensityValue = document.getElementById(
+        "light-intensity-value"
+      );
+
+      const sensorCards = {
+        temp: document.getElementById("temp-card"),
+        humidity: document.getElementById("humidity-card"),
+        soil: document.getElementById("soil-card"),
+        light: document.getElementById("light-card"),
+      };
+
+      const statusText = document.getElementById("status-text");
+      const lastUpdatedText = document.getElementById("last-updated");
+      const pumpControlCard = document.getElementById("pump-control-card");
+      const pumpControlsContainer = document.getElementById("pump-controls");
+      const pumpButtons = document.querySelectorAll(".pump-btn");
+
+      // --- Sound Effect Setup ---
+      let clickSound;
+      document.body.addEventListener(
+        "mousedown",
+        () => {
+          if (!clickSound) {
+            // Use PolySynth to handle rapid clicks without errors.
+            clickSound = new Tone.PolySynth(Tone.Synth, {
+              oscillator: { type: "sine" },
+              envelope: {
+                attack: 0.001,
+                decay: 0.1,
+                sustain: 0.01,
+                release: 0.1,
+              },
+            }).toDestination();
+          }
+        },
+        { once: true }
+      );
+
+      /**
+       * Updates the dashboard with sensor data from Firebase
+       * @param {Object} data - The sensor data from Firebase
+       */
+      function updateSensorData(data) {
+        if (data.Temperature !== undefined) {
+          temperatureValue.textContent = `${data.Temperature}°C`;
+          sensorCards.temp.classList.remove("card-glow");
+          void sensorCards.temp.offsetWidth;
+          sensorCards.temp.classList.add("card-glow");
+        }
+
+        if (data.Air_Humidity !== undefined) {
+          airHumidityValue.textContent = `${data.Air_Humidity}%`;
+          sensorCards.humidity.classList.remove("card-glow");
+          void sensorCards.humidity.offsetWidth;
+          sensorCards.humidity.classList.add("card-glow");
+        }
+
+        if (data.Soil_Humidity !== undefined) {
+          soilHumidityValue.textContent = `${data.Soil_Humidity}%`;
+          sensorCards.soil.classList.remove("card-glow");
+          void sensorCards.soil.offsetWidth;
+          sensorCards.soil.classList.add("card-glow");
+        }
+
+        if (data.Brightness !== undefined) {
+          // Convert negative brightness to "N/A" (as shown in your screenshot)
+          const lightValue =
+            data.Brightness >= 0 ? `${data.Brightness} lux` : "N/A";
+          lightIntensityValue.textContent = lightValue;
+          sensorCards.light.classList.remove("card-glow");
+          void sensorCards.light.offsetWidth;
+          sensorCards.light.classList.add("card-glow");
+        }
+
+        if (data.Pump_Condition !== undefined) {
+          // Update pump status based on the actual condition
+          if (data.Pump_Condition) {
+            statusText.textContent = "Pump Status: ON";
+            pumpControlCard.classList.add("pump-active");
+          } else {
+            statusText.textContent = "Pump Status: OFF";
+            pumpControlCard.classList.remove("pump-active");
+          }
+        }
+
+        lastUpdatedText.textContent = `Last updated: ${new Date().toLocaleTimeString()}`;
+      }
+
+      /**
+       * Handles clicks on the pump control buttons.
+       */
+      function handlePumpSelection(event) {
+        const clickedButton = event.target.closest(".pump-btn");
+        if (!clickedButton) return;
+
+        if (clickSound) {
+          clickSound.triggerAttackRelease("C5", "8n");
+        }
+
+        // Update button styles
+        pumpButtons.forEach((btn) => btn.classList.remove("active-btn"));
+        clickedButton.classList.add("active-btn");
+
+        // Update pump status in Firebase
+        let pumpStatus;
+        switch (clickedButton.id) {
+          case "pump-on":
+            statusText.textContent = "Pump Status: ON (Manual)";
+            pumpControlCard.classList.add("pump-active");
+            pumpStatus = true;
+            break;
+          case "pump-off":
+            statusText.textContent = "Pump Status: OFF (Manual)";
+            pumpControlCard.classList.remove("pump-active");
+            pumpStatus = false;
+            break;
+          case "pump-default":
+          default:
+            statusText.textContent = "Pump Status: Default (Auto)";
+            // Set to null to indicate automatic control
+            pumpStatus = null;
+            break;
+        }
+
+        // Update Firebase with the new pump status
+        database.ref("data/Pump_Condition").set(pumpStatus);
+      }
+
+      // Add single event listener to the container for efficiency
+      pumpControlsContainer.addEventListener("click", handlePumpSelection);
+
+      // --- Initialize Firebase Listeners ---
+      function initializeFirebaseListeners() {
+        // Listen for changes in the data node
+        database.ref("data").on("value", (snapshot) => {
+          const data = snapshot.val();
+          if (data) {
+            updateSensorData(data);
+          }
+        });
+
+        // Check initial pump status to set the correct button as active
+        database
+          .ref("data/Pump_Condition")
+          .once("value")
+          .then((snapshot) => {
+            const pumpStatus = snapshot.val();
+            if (pumpStatus === true) {
+              document.getElementById("pump-on").classList.add("active-btn");
+              statusText.textContent = "Pump Status: ON";
+              pumpControlCard.classList.add("pump-active");
+            } else if (pumpStatus === false) {
+              document.getElementById("pump-off").classList.add("active-btn");
+              statusText.textContent = "Pump Status: OFF";
+              pumpControlCard.classList.remove("pump-active");
+            } else {
+              document
+                .getElementById("pump-default")
+                .classList.add("active-btn");
+              statusText.textContent = "Pump Status: Default (Auto)";
+            }
+          });
+      }
+
+      // Initialize the dashboard
+      initializeFirebaseListeners();
+    </script>
+  </body>
+</html>
