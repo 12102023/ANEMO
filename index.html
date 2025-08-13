@@ -20,21 +20,6 @@
         background-image: radial-gradient(#1a1a1a 1px, transparent 1px);
         background-size: 20px 20px;
       }
-      /* Animation for the card glow effect on update */
-      @keyframes glow {
-        0% {
-          box-shadow: 0 0 0px rgba(250, 204, 21, 0);
-        }
-        50% {
-          box-shadow: 0 0 15px rgba(250, 204, 21, 0.4);
-        }
-        100% {
-          box-shadow: 0 0 0px rgba(250, 204, 21, 0);
-        }
-      }
-      .card-glow {
-        animation: glow 1.5s ease-in-out;
-      }
       /* Animation for the pulsing pump status */
       @keyframes pulse-bg {
         0% {
@@ -64,7 +49,6 @@
         background-color: #facc15; /* yellow-400 */
         color: #1f2937; /* gray-800 */
         box-shadow: 0 0 10px rgba(250, 204, 21, 0.5);
-        animation: pulse-bg 2s infinite ease-in-out;
       }
       .pump-btn:not(.active-btn):hover {
         background-color: #6b7280; /* gray-500 */
@@ -249,13 +233,6 @@
       const soilHumidityValue = document.getElementById("soil-humidity-value");
       const lightIntensityValue = document.getElementById("light-intensity-value");
 
-      const sensorCards = {
-        temp: document.getElementById("temp-card"),
-        humidity: document.getElementById("humidity-card"),
-        soil: document.getElementById("soil-card"),
-        light: document.getElementById("light-card"),
-      };
-
       const statusText = document.getElementById("status-text");
       const lastUpdatedText = document.getElementById("last-updated");
       const connectionStatus = document.getElementById("connection-status");
@@ -292,16 +269,6 @@
         },
         { once: true }
       );
-
-      /**
-       * Triggers the glow animation on a card
-       * @param {HTMLElement} card - The card element to animate
-       */
-      function triggerCardGlow(card) {
-        card.classList.remove("card-glow");
-        void card.offsetWidth; // Trigger reflow
-        card.classList.add("card-glow");
-      }
 
       /**
        * Updates the UI based on the current pump state and auto mode
@@ -346,20 +313,16 @@
         switch (sensor) {
           case 'Temperature':
             temperatureValue.textContent = `${value}°C`;
-            triggerCardGlow(sensorCards.temp);
             break;
           case 'Air_Humidity':
             airHumidityValue.textContent = `${value}%`;
-            triggerCardGlow(sensorCards.humidity);
             break;
           case 'Soil_Humidity':
             soilHumidityValue.textContent = `${value}%`;
-            triggerCardGlow(sensorCards.soil);
             break;
           case 'Brightness':
             const lightValue = value >= 0 ? `${value} lux` : "N/A";
             lightIntensityValue.textContent = lightValue;
-            triggerCardGlow(sensorCards.light);
             break;
           case 'Pump_Condition':
             updatePumpUI();
