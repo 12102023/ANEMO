@@ -529,6 +529,20 @@
       }
 
       // --- Event Handlers ---
+      function handleEnterKeyPress(event) {
+        if (event.key === "Enter") {
+          event.preventDefault();
+
+          // Determine which input field triggered the event
+          const inputId = event.target.id;
+
+          if (inputId === "lower-threshold" || inputId === "upper-threshold") {
+            handleSetThresholds();
+          } else if (inputId === "time-1" || inputId === "time-2") {
+            handleSetSchedule();
+          }
+        }
+      }
       async function handleSetThresholds() {
         const lower = parseInt(lowerThresholdInput.value, 10);
         const upper = parseInt(upperThresholdInput.value, 10);
@@ -646,6 +660,16 @@
             .addEventListener("change", (e) =>
               handleScheduleToggleChange(e, "2")
             );
+
+          // Add event listeners for Enter key press
+          lowerThresholdInput.addEventListener("keypress", handleEnterKeyPress);
+          upperThresholdInput.addEventListener("keypress", handleEnterKeyPress);
+          document
+            .getElementById("time-1")
+            .addEventListener("keypress", handleEnterKeyPress);
+          document
+            .getElementById("time-2")
+            .addEventListener("keypress", handleEnterKeyPress);
         } catch (error) {
           console.error("Firebase initialization failed:", error);
           connectionStatus.textContent = "Not Connected to Firebase";
