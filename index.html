@@ -32,6 +32,7 @@
     </style>
   </head>
   <body class="text-white flex items-center justify-center min-h-screen p-4">
+    <!-- Your existing HTML content remains the same until the script section -->
     <div
       class="w-full max-w-2xl mx-auto bg-gray-900/80 backdrop-blur-sm border border-gray-700 rounded-2xl shadow-2xl p-4 sm:p-6 space-y-6"
     >
@@ -287,7 +288,7 @@
               class="flex items-center gap-2 text-sm font-bold"
             >
               <span class="h-3 w-3 rounded-full bg-gray-500"></span
-              ><span>OFF</span>
+              ><span></span>
             </div>
           </div>
           <div
@@ -322,210 +323,344 @@
       </div>
     </div>
 
-<script type="module">
-  // Replace the entire script section with this updated version
+    <script type="module">
+      // --- Firebase SDK Imports ---
+      import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+      import {
+        getDatabase,
+        ref,
+        onValue,
+        update,
+      } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-database.js";
+      import {
+        getAuth,
+        signInAnonymously,
+      } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
 
-  // --- Firebase SDK Imports ---
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-  import { 
-    getDatabase, 
-    ref, 
-    onValue, 
-    set,
-    update
-  } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-database.js";
-  import {
-    getAuth,
-    signInAnonymously
-  } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+      // --- DOM Element References ---
+      const connectionStatus = document.getElementById("connection-status");
+      const lastUpdatedTimestamp = document.getElementById(
+        "last-updated-timestamp"
+      );
+      const lowerThresholdInput = document.getElementById("lower-threshold");
+      const upperThresholdInput = document.getElementById("upper-threshold");
+      const thresholdStatusText = document.getElementById("threshold-status");
+      const setThresholdsBtn = document.getElementById("set-thresholds");
+      const resetThresholdsBtn = document.getElementById("reset-thresholds");
+      const pumpControlsContainer = document.getElementById("pump-controls");
+      const pumpLiveStatus = document.getElementById("pump-live-status");
+      const pumpDescription = document.getElementById("pump-description");
+      const pumpDescriptionContainer = document.getElementById(
+        "pump-description-container"
+      );
+      const soilHumidityIcon = document.getElementById("soil-humidity-icon");
+      const soilHumidityLabel = document.getElementById("soil-humidity-label");
+      const timeStatus = document.getElementById("time-status");
+      const setScheduleBtn = document.getElementById("set-schedule");
+      const timeToggles = document.querySelectorAll(".time-toggle");
 
-  // --- DOM Element References ---
-  // (keep existing DOM references)
+      // --- App and Firebase Config ---
+      const firebaseConfig = {
+        apiKey: "AIzaSyByTRuHzdm_G__8qzKytgVucC_pF44Ufl0",
+        authDomain: "aksang-1-ea4e8.firebaseapp.com",
+        databaseURL:
+          "https://aksang-1-ea4e8-default-rtdb.asia-southeast1.firebasedatabase.app",
+        projectId: "aksang-1-ea4e8",
+        storageBucket: "aksang-1-ea4e8.firebasestorage.app",
+        messagingSenderId: "706818406164",
+        appId: "1:706818406164:web:be417bc55686d997537401",
+      };
 
-  // --- App and Firebase Config ---
-  const firebaseConfig = {
-    apiKey: "AIzaSyByTRuHzdm_G__8qzKytgVucC_pF44Ufl0",
-    authDomain: "aksang-1-ea4e8.firebaseapp.com",
-    databaseURL: "https://aksang-1-ea4e8-default-rtdb.asia-southeast1.firebasedatabase.app",
-    projectId: "aksang-1-ea4e8",
-    storageBucket: "aksang-1-ea4e8.firebasestorage.app",
-    messagingSenderId: "706818406164",
-    appId: "1:706818406164:web:be417bc55686d997537401"
-  };
-  
-  const DEFAULT_THRESHOLDS = { lower: 40, upper: 60 };
-  const DEFAULT_SCHEDULE = {
-    schedule: [
-      { time: "08:00", active: true },
-      { time: "18:00", active: false },
-    ],
-  };
-  
-  let currentThresholds = { ...DEFAULT_THRESHOLDS };
-  const PUMP_DESCRIPTIONS = {
-    1: "Waters the plant based on the set soil moisture thresholds.",
-    2: "Waters the plant for 20 seconds once every day at the activated times.",
-    3: "Turns the pump on indefinitely.",
-    4: "Turns the pump off indefinitely.",
-  };
+      const DEFAULT_THRESHOLDS = { lower: 40, upper: 60 };
+      const DEFAULT_SCHEDULE = {
+        1: { time: "09:00", active: true },
+        2: { time: "23:00", active: false },
+      };
 
-  const MODE_MAP = {
-    1: "Auto",
-    2: "Periodically",
-    3: "On",
-    4: "Off"
-  };
+      let currentThresholds = { ...DEFAULT_THRESHOLDS };
 
-  // --- UI Update Functions ---
-  function updateSensorUI(data) {
-    document.getElementById("temperature-value").textContent = `${data.Temperature?.toFixed(1) || "--"}°C`;
-    document.getElementById("air-humidity-value").textContent = `${data.Air_Humidity?.toFixed(0) || "--"}%`;
-    document.getElementById("soil-humidity-value").textContent = `${data.Soil_Humidity?.toFixed(0) || "--"}%`;
-    document.getElementById("light-intensity-value").textContent = `${data.Brightness?.toFixed(0) || "--"} lux`;
-    
-    const timestamp = new Date();
-    lastUpdatedTimestamp.textContent = `Last updated: ${timestamp.toLocaleString("en-US", {
-      dateStyle: "medium",
-      timeStyle: "short",
-    })}`;
+      const PUMP_DESCRIPTIONS = {
+        1: "Waters the plant based on the set soil moisture thresholds.",
+        2: "Waters the plant for 20 seconds once every day at the activated times.",
+        3: "Turns the pump on indefinitely.",
+        4: "Turns the pump off indefinitely.",
+      };
 
-    const soilHumidity = data.Soil_Humidity;
-    if (soilHumidity !== undefined && soilHumidity < currentThresholds.lower) {
-      soilHumidityIcon.classList.remove("text-yellow-400");
-      soilHumidityIcon.classList.add("text-red-500");
-      soilHumidityLabel.classList.add("text-red-500");
-    } else {
-      soilHumidityIcon.classList.remove("text-red-500");
-      soilHumidityIcon.classList.add("text-yellow-400");
-      soilHumidityLabel.classList.remove("text-red-500");
-    }
-  }
+      const MODE_MAP = {
+        1: "Auto",
+        2: "Periodically",
+        3: "On",
+        4: "Off",
+      };
 
-  function updatePumpUI(data) {
-    const mode = data.Pump_mode || 4; // Default to Off (4)
-    document.querySelectorAll(".pump-btn").forEach((btn) => btn.classList.remove("active-btn"));
-    const activeButton = document.getElementById(`pump-${mode}`);
-    if (activeButton) {
-      activeButton.classList.add("active-btn");
-      const containerRect = pumpControlsContainer.getBoundingClientRect();
-      const buttonRect = activeButton.getBoundingClientRect();
-      const arrowPosition = buttonRect.left - containerRect.left + buttonRect.width / 2;
-      pumpDescriptionContainer.style.setProperty("--arrow-left-position", `${arrowPosition}px`);
-    }
-    
-    const statusText = document.getElementById("status-text");
-    pumpDescription.textContent = PUMP_DESCRIPTIONS[mode] || "";
-    pumpDescriptionContainer.classList.add("visible");
-    pumpDescriptionContainer.style.opacity = 1;
-    statusText.textContent = `Pump Mode: ${MODE_MAP[mode]}`;
-  }
-
-  function updatePumpConditionUI(isOn) {
-    const statusDot = pumpLiveStatus.querySelector("span");
-    const statusText = pumpLiveStatus.childNodes[1];
-    if (isOn) {
-      statusDot.className = "h-3 w-3 rounded-full bg-green-500";
-      statusText.textContent = "ON";
-    } else {
-      statusDot.className = "h-3 w-3 rounded-full bg-gray-500";
-      statusText.textContent = "OFF";
-    }
-  }
-
-  function updateThresholdUI(data) {
-    currentThresholds = { 
-      lower: data.treshold?.lower || DEFAULT_THRESHOLDS.lower,
-      upper: data.treshold?.upper || DEFAULT_THRESHOLDS.upper
-    };
-    lowerThresholdInput.value = currentThresholds.lower;
-    upperThresholdInput.value = currentThresholds.upper;
-  }
-
-  // --- Firestore Interaction Functions ---
-  async function setInDB(path, data, statusEl) {
-    const db = getDatabase();
-    const refPath = ref(db, path);
-    
-    if (statusEl) statusEl.textContent = "Saving...";
-    try {
-      await update(refPath, data);
-      if (statusEl) statusEl.textContent = "Saved successfully!";
-    } catch (error) {
-      console.error(`Error setting ${path}:`, error);
-      if (statusEl) statusEl.textContent = "Save failed.";
-    } finally {
-      if (statusEl) setTimeout(() => (statusEl.textContent = ""), 2000);
-    }
-  }
-
-  // --- Event Handlers ---
-  async function handleSetThresholds() {
-    const lower = parseInt(lowerThresholdInput.value, 10);
-    const upper = parseInt(upperThresholdInput.value, 10);
-    if (isNaN(lower) || isNaN(upper)) {
-      thresholdStatusText.textContent = "Please enter valid numbers.";
-      setTimeout(() => (thresholdStatusText.textContent = ""), 2000);
-      return;
-    }
-    await setInDB("data/treshold", { lower, upper }, thresholdStatusText);
-  }
-
-  async function handlePumpSelection(event) {
-    const clickedButton = event.target.closest(".pump-btn");
-    if (!clickedButton) return;
-    
-    const mode = parseInt(clickedButton.id.replace("pump-", ""), 10);
-    await setInDB("data", { Pump_mode: mode });
-  }
-
-  // --- Main Initialization ---
-  async function main() {
-    try {
-      const app = initializeApp(firebaseConfig);
-      const db = getDatabase(app);
-      const auth = getAuth(app);
-      
-      await signInAnonymously(auth);
-      
-      connectionStatus.textContent = "Connected to Firebase";
-      connectionStatus.className = "text-sm font-bold text-green-500";
-      
-      // Listen for data changes
-      const dataRef = ref(db, 'data');
-      onValue(dataRef, (snapshot) => {
-        const data = snapshot.val();
-        if (data) {
-          updateSensorUI(data);
-          updatePumpUI(data);
-          updatePumpConditionUI(data.Pump_Condition);
-          updateThresholdUI(data);
+      // --- UI Update Functions ---
+      function updateSoilHumidityColor(soilHumidity) {
+        if (soilHumidity !== undefined) {
+          if (soilHumidity <= currentThresholds.lower) {
+            soilHumidityIcon.classList.remove("text-yellow-400");
+            soilHumidityIcon.classList.add("text-red-500");
+            soilHumidityLabel.classList.add("text-red-500");
+          } else {
+            soilHumidityIcon.classList.remove("text-red-500");
+            soilHumidityIcon.classList.add("text-yellow-400");
+            soilHumidityLabel.classList.remove("text-red-500");
+          }
         }
-      });
-      
-      // Initialize pump mode buttons
-      document.getElementById("pump-1").textContent = "Auto";
-      document.getElementById("pump-2").textContent = "Periodically";
-      document.getElementById("pump-3").textContent = "On";
-      document.getElementById("pump-4").textContent = "Off";
-      
-    } catch (error) {
-      console.error("Firebase initialization failed:", error);
-      connectionStatus.textContent = "Not Connected to Firebase";
-      connectionStatus.className = "text-sm font-bold text-red-500";
-    }
-  }
+      }
 
-  // --- Event Listeners ---
-  setThresholdsBtn.addEventListener("click", handleSetThresholds);
-  resetThresholdsBtn.addEventListener("click", () => {
-    lowerThresholdInput.value = DEFAULT_THRESHOLDS.lower;
-    upperThresholdInput.value = DEFAULT_THRESHOLDS.upper;
-    handleSetThresholds();
-  });
-  pumpControlsContainer.addEventListener("click", handlePumpSelection);
+      function updateSensorUI(data) {
+        document.getElementById("temperature-value").textContent = `${
+          data.Temperature?.toFixed(1) || "--"
+        }°C`;
+        document.getElementById("air-humidity-value").textContent = `${
+          data.Air_Humidity?.toFixed(0) || "--"
+        }%`;
+        document.getElementById("soil-humidity-value").textContent = `${
+          data.Soil_Humidity?.toFixed(0) || "--"
+        }%`;
+        document.getElementById("light-intensity-value").textContent = `${
+          data.Brightness?.toFixed(0) || "--"
+        } lux`;
 
-  main();
-</script>
+        const timestamp = new Date();
+        lastUpdatedTimestamp.textContent = `Last updated: ${timestamp.toLocaleString(
+          "en-US",
+          {
+            dateStyle: "medium",
+            timeStyle: "short",
+          }
+        )}`;
+
+        updateSoilHumidityColor(data.Soil_Humidity);
+      }
+
+      function updatePumpUI(data) {
+        const mode = data.Pump_mode || 4; // Default to Off (4)
+        const isPumpOn = data.Pump_Condition || false;
+
+        document
+          .querySelectorAll(".pump-btn")
+          .forEach((btn) => btn.classList.remove("active-btn"));
+
+        let activeButton;
+        if (mode === 1) activeButton = document.getElementById("pump-auto");
+        else if (mode === 2)
+          activeButton = document.getElementById("pump-periodically");
+        else if (mode === 3) activeButton = document.getElementById("pump-on");
+        else activeButton = document.getElementById("pump-off");
+
+        if (activeButton) {
+          activeButton.classList.add("active-btn");
+          const containerRect = pumpControlsContainer.getBoundingClientRect();
+          const buttonRect = activeButton.getBoundingClientRect();
+          const arrowPosition =
+            buttonRect.left - containerRect.left + buttonRect.width / 2;
+          pumpDescriptionContainer.style.setProperty(
+            "--arrow-left-position",
+            `${arrowPosition}px`
+          );
+        }
+
+        updatePumpConditionUI(isPumpOn);
+
+        const statusText = document.getElementById("status-text");
+        pumpDescription.textContent = PUMP_DESCRIPTIONS[mode] || "";
+        pumpDescriptionContainer.classList.add("visible");
+        pumpDescriptionContainer.style.opacity = 1;
+        statusText.textContent = `Pump Mode: ${MODE_MAP[mode]}`;
+      }
+
+      function updatePumpConditionUI(isOn) {
+        const statusDot = pumpLiveStatus.querySelector("span");
+        const statusText = pumpLiveStatus.childNodes[1];
+        if (isOn) {
+          statusDot.className = "h-3 w-3 rounded-full bg-green-500";
+          statusText.textContent = "";
+        } else {
+          statusDot.className = "h-3 w-3 rounded-full bg-gray-500";
+          statusText.textContent = "";
+        }
+      }
+
+      function updateThresholdUI(data) {
+        currentThresholds = {
+          lower: data.trreshold?.lower || DEFAULT_THRESHOLDS.lower,
+          upper: data.trreshold?.upper || DEFAULT_THRESHOLDS.upper,
+        };
+        lowerThresholdInput.value = currentThresholds.lower;
+        upperThresholdInput.value = currentThresholds.upper;
+      }
+
+      function updateScheduleUI(scheduleData) {
+        if (!scheduleData) return;
+
+        if (scheduleData["1"]) {
+          document.getElementById("time-1").value = scheduleData[
+            "1"
+          ].time.replace(".", ":");
+          document.getElementById("toggle-1").checked =
+            scheduleData["1"].active;
+        }
+
+        if (scheduleData["2"]) {
+          document.getElementById("time-2").value = scheduleData[
+            "2"
+          ].time.replace(".", ":");
+          document.getElementById("toggle-2").checked =
+            scheduleData["2"].active;
+        }
+      }
+
+      // --- Firestore Interaction Functions ---
+      async function setInDB(path, data, statusEl) {
+        const db = getDatabase();
+        const refPath = ref(db, path);
+
+        if (statusEl) statusEl.textContent = "Saving...";
+        try {
+          await update(refPath, data);
+          if (statusEl) statusEl.textContent = "Saved successfully!";
+        } catch (error) {
+          console.error(`Error setting ${path}:`, error);
+          if (statusEl) statusEl.textContent = "Save failed.";
+        } finally {
+          if (statusEl) setTimeout(() => (statusEl.textContent = ""), 2000);
+        }
+      }
+
+      // --- Event Handlers ---
+      async function handleSetThresholds() {
+        const lower = parseInt(lowerThresholdInput.value, 10);
+        const upper = parseInt(upperThresholdInput.value, 10);
+        if (isNaN(lower) || isNaN(upper)) {
+          thresholdStatusText.textContent = "Please enter valid numbers.";
+          setTimeout(() => (thresholdStatusText.textContent = ""), 2000);
+          return;
+        }
+        await setInDB("data/trreshold", { lower, upper }, thresholdStatusText);
+
+        // Update soil humidity color immediately after setting new thresholds
+        const soilHumidity = parseFloat(
+          document.getElementById("soil-humidity-value").textContent
+        );
+        updateSoilHumidityColor(soilHumidity);
+      }
+
+      async function handleResetThresholds() {
+        lowerThresholdInput.value = DEFAULT_THRESHOLDS.lower;
+        upperThresholdInput.value = DEFAULT_THRESHOLDS.upper;
+        thresholdStatusText.textContent = "Reset to defaults";
+        setTimeout(() => (thresholdStatusText.textContent = ""), 2000);
+        await setInDB("data/trreshold", DEFAULT_THRESHOLDS);
+
+        // Update soil humidity color immediately after resetting thresholds
+        const soilHumidity = parseFloat(
+          document.getElementById("soil-humidity-value").textContent
+        );
+        updateSoilHumidityColor(soilHumidity);
+      }
+
+      async function handleScheduleToggleChange(event, slotId) {
+        const isActive = event.target.checked;
+        await update(ref(getDatabase(), `data/schedule/${slotId}`), {
+          active: isActive,
+        });
+      }
+
+      async function handleSetSchedule() {
+        const schedule = {
+          1: {
+            time: document.getElementById("time-1").value.replace(":", "."),
+            active: document.getElementById("toggle-1").checked,
+          },
+          2: {
+            time: document.getElementById("time-2").value.replace(":", "."),
+            active: document.getElementById("toggle-2").checked,
+          },
+        };
+        await setInDB("data/schedule", schedule, timeStatus);
+      }
+
+      async function handlePumpSelection(event) {
+        const clickedButton = event.target.closest(".pump-btn");
+        if (!clickedButton) return;
+
+        let mode;
+        if (clickedButton.id === "pump-auto") mode = 1;
+        else if (clickedButton.id === "pump-periodically") mode = 2;
+        else if (clickedButton.id === "pump-on") mode = 3;
+        else if (clickedButton.id === "pump-off") mode = 4;
+        else return;
+
+        try {
+          const db = getDatabase();
+          const updates = { Pump_mode: mode };
+
+          // Only update Pump_Condition for manual modes (3-4)
+          if (mode === 3 || mode === 4) {
+            updates.Pump_Condition = mode === 3;
+          }
+
+          await update(ref(db, "data"), updates);
+          console.log("Pump mode updated successfully");
+        } catch (error) {
+          console.error("Error updating pump status:", error);
+        }
+      }
+
+      // --- Main Initialization ---
+      async function main() {
+        try {
+          const app = initializeApp(firebaseConfig);
+          const db = getDatabase(app);
+          const auth = getAuth(app);
+
+          await signInAnonymously(auth);
+
+          connectionStatus.textContent = "Connected to Firebase";
+          connectionStatus.className = "text-sm font-bold text-green-500";
+
+          const dataRef = ref(db, "data");
+          onValue(dataRef, (snapshot) => {
+            const data = snapshot.val();
+            if (data) {
+              updateSensorUI(data);
+              updatePumpUI(data);
+              updateThresholdUI(data);
+              updateScheduleUI(data.schedule);
+            }
+          });
+
+          // Initialize default values
+          lowerThresholdInput.value = DEFAULT_THRESHOLDS.lower;
+          upperThresholdInput.value = DEFAULT_THRESHOLDS.upper;
+
+          // Set up toggle change listeners
+          document
+            .getElementById("toggle-1")
+            .addEventListener("change", (e) =>
+              handleScheduleToggleChange(e, "1")
+            );
+          document
+            .getElementById("toggle-2")
+            .addEventListener("change", (e) =>
+              handleScheduleToggleChange(e, "2")
+            );
+        } catch (error) {
+          console.error("Firebase initialization failed:", error);
+          connectionStatus.textContent = "Not Connected to Firebase";
+          connectionStatus.className = "text-sm font-bold text-red-500";
+        }
+      }
+
+      // --- Event Listeners ---
+      setThresholdsBtn.addEventListener("click", handleSetThresholds);
+      resetThresholdsBtn.addEventListener("click", handleResetThresholds);
+      setScheduleBtn.addEventListener("click", handleSetSchedule);
+      pumpControlsContainer.addEventListener("click", handlePumpSelection);
+
+      main();
+    </script>
     <style>
       .threshold-input {
         background-color: #374151;
