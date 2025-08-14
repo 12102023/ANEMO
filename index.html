@@ -410,7 +410,7 @@
 
       function updateSensorUI(data) {
         document.getElementById("temperature-value").textContent = `${
-          data.Temperature?.toFixed(1) || "--"
+          data.Temperature?.toFixed(0) || "--"
         }°C`;
         document.getElementById("air-humidity-value").textContent = `${
           data.Air_Humidity?.toFixed(0) || "--"
