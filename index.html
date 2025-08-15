@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>SMART IRRIGATION</title>
+    <title>ANEMO</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Tone.js for sound effects -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.7.77/Tone.js"></script>
@@ -74,7 +74,7 @@
       <!-- Header -->
       <div>
         <h1 class="text-2xl sm:text-3xl font-bold text-center text-gray-100">
-          Advanced IoT Dashboard
+          ANEMO IoT
         </h1>
         <p
           id="status-text"
@@ -695,6 +695,10 @@
       async function handleSetSchedule() {
         const duration =
           parseInt(durationInput.value) || DEFAULT_SCHEDULE.duration;
+        const now = new Date();
+        const hours = String(now.getHours()).padStart(2, "0");
+        const minutes = String(now.getMinutes()).padStart(2, "0");
+        const currentTime = `${hours}.${minutes}`;
 
         const schedule = {
           1: {
@@ -706,6 +710,7 @@
             active: document.getElementById("toggle-2").checked,
           },
           duration,
+          current_time: currentTime, // Add the new field here
         };
         await setInDB("data/schedule", schedule, timeStatus);
       }
@@ -762,29 +767,6 @@
         } catch (error) {
           console.error("Error updating pump status:", error);
         }
-      }
-
-      // --- NEW: Time Update Function ---
-      function updateCurrentTime() {
-        const db = getDatabase();
-        const now = new Date();
-        const hours = String(now.getHours()).padStart(2, "0");
-        const minutes = String(now.getMinutes()).padStart(2, "0");
-        const currentTime = `${hours}.${minutes}`;
-        update(ref(db, "data/schedule"), { current_time: currentTime });
-      }
-
-      // --- NEW: Function to schedule the periodic time update ---
-      function startRealtimeClock() {
-        const now = new Date();
-        const secondsUntilNextMinute = 60 - now.getSeconds();
-
-        // Run the first update after `secondsUntilNextMinute`
-        setTimeout(() => {
-          updateCurrentTime();
-          // Then, run updates every minute
-          setInterval(updateCurrentTime, 60 * 1000);
-        }, secondsUntilNextMinute * 1000);
       }
 
       // --- Main Initialization ---
@@ -844,9 +826,6 @@
           time2Input.addEventListener("blur", handleBlur);
           durationInput.addEventListener("focus", handleFocus);
           durationInput.addEventListener("blur", handleBlur);
-
-          // --- NEW: Start the real-time clock ---
-          startRealtimeClock();
         } catch (error) {
           console.error("Firebase initialization failed:", error);
           connectionStatus.textContent = "Not Connected to Firebase";
