@@ -419,6 +419,8 @@
       // New DOM references for duration control
       const durationInput = document.getElementById("duration-input");
       const resetDurationBtn = document.getElementById("reset-duration-btn");
+      const time1Input = document.getElementById("time-1");
+      const time2Input = document.getElementById("time-2");
 
       // --- App and Firebase Config ---
       const firebaseConfig = {
@@ -440,6 +442,8 @@
       };
 
       let currentThresholds = { ...DEFAULT_THRESHOLDS };
+      // NEW: Global flag to track if an input is focused
+      let isInputFocused = false;
 
       const PUMP_DESCRIPTIONS = {
         1: "Waters the plant based on the set soil moisture thresholds.",
@@ -456,11 +460,7 @@
       };
 
       // --- UI Update Functions ---
-      // This function has been updated to remove the red indicator logic.
-      // The soil humidity icon and label will now always be yellow.
-      // Modifikasi: Logika untuk mengubah warna menjadi merah dikembalikan, tetapi efek bayangan (shadow) dihilangkan.
       function updateSoilHumidityColor(soilHumidity, lowerThreshold) {
-        // Remove all classes first to avoid conflicts
         soilCard.classList.remove("border-red-500");
         soilCard.classList.add("border-gray-700");
         soilHumidityIcon.classList.remove("text-red-500");
@@ -501,7 +501,6 @@
           }
         )}`;
 
-        // Panggil fungsi update dengan nilai kelembaban dan batas bawah yang baru
         updateSoilHumidityColor(data.Soil_Humidity, currentThresholds.lower);
       }
 
@@ -553,7 +552,10 @@
         }
       }
 
+      // MODIFIED: Only update inputs if not focused
       function updateThresholdUI(data) {
+        if (isInputFocused) return; // Exit if an input is focused
+
         currentThresholds = {
           lower: data.trreshold?.lower || DEFAULT_THRESHOLDS.lower,
           upper: data.trreshold?.upper || DEFAULT_THRESHOLDS.upper,
@@ -562,35 +564,28 @@
         upperThresholdInput.value = currentThresholds.upper;
       }
 
-      // Memperbarui UI jadwal dengan durasi
+      // MODIFIED: Only update inputs if not focused
       function updateScheduleUI(scheduleData) {
+        if (isInputFocused) return; // Exit if an input is focused
+
         if (!scheduleData) return;
 
         if (scheduleData["1"]) {
-          document.getElementById("time-1").value = scheduleData[
-            "1"
-          ].time.replace(".", ":");
+          time1Input.value = scheduleData["1"].time.replace(".", ":");
           document.getElementById("toggle-1").checked =
             scheduleData["1"].active;
         }
 
         if (scheduleData["2"]) {
-          document.getElementById("time-2").value = scheduleData[
-            "2"
-          ].time.replace(".", ":");
+          time2Input.value = scheduleData["2"].time.replace(".", ":");
           document.getElementById("toggle-2").checked =
             scheduleData["2"].active;
         }
 
-        // Memperbarui input durasi
         durationInput.value =
           scheduleData.duration || DEFAULT_SCHEDULE.duration;
       }
 
-      /**
-       * Fungsi yang diperbarui untuk mengirim data ke Firebase dan menampilkan status.
-       * Menggunakan kelas Tailwind untuk warna status.
-       */
       async function setInDB(path, data, statusEl) {
         const db = getDatabase();
         const refPath = ref(db, path);
@@ -617,7 +612,7 @@
             setTimeout(() => {
               statusEl.textContent = "";
               statusEl.className = "text-center text-sm text-gray-500 h-4";
-            }, 5000); // Duration extended to 5000ms
+            }, 5000);
           }
         }
       }
@@ -626,8 +621,6 @@
       function handleEnterKeyPress(event) {
         if (event.key === "Enter") {
           event.preventDefault();
-
-          // Determine which input field triggered the event
           const inputId = event.target.id;
 
           if (inputId === "lower-threshold" || inputId === "upper-threshold") {
@@ -642,13 +635,20 @@
         }
       }
 
-      async function handleSetThresholds() {
-        const lower = parseInt(lowerThresholdInput.value) || 0; // Default 0 if NaN
-        const upper = parseInt(upperThresholdInput.value) || 1; // Default 1 if NaN
+      // NEW: Handlers for focus and blur
+      function handleFocus() {
+        isInputFocused = true;
+      }
 
-        // Simple validation
+      function handleBlur() {
+        isInputFocused = false;
+      }
+
+      async function handleSetThresholds() {
+        const lower = parseInt(lowerThresholdInput.value) || 0;
+        const upper = parseInt(upperThresholdInput.value) || 1;
+
         if (lower >= upper) {
-          // Display error message in red
           thresholdStatusText.textContent =
             "Nilai bawah harus lebih kecil dari atas";
           thresholdStatusText.className =
@@ -657,15 +657,13 @@
             thresholdStatusText.textContent = "";
             thresholdStatusText.className =
               "text-center text-sm text-gray-500 h-4";
-          }, 5000); // Duration extended to 5000ms
+          }, 5000);
           return;
         }
 
-        // Call the updated function to save to DB
         await setInDB("data/trreshold", { lower, upper }, thresholdStatusText);
       }
 
-      // Updated function to show "Reset ke nilai default" message
       async function handleResetThresholds() {
         // Set input values to default
         lowerThresholdInput.value = DEFAULT_THRESHOLDS.lower;
@@ -678,6 +676,13 @@
 
         // Update data in Firebase
         await setInDB("data/trreshold", DEFAULT_THRESHOLDS);
+
+        // ADDED: Hide the message after a delay
+        setTimeout(() => {
+          thresholdStatusText.textContent = "";
+          thresholdStatusText.className =
+            "text-center text-sm text-gray-500 h-4";
+        }, 5000); // Wait for 5 seconds (5000ms)
       }
 
       async function handleScheduleToggleChange(event, slotId) {
@@ -687,10 +692,10 @@
         });
       }
 
-      // Handler to save schedule and duration
       async function handleSetSchedule() {
         const duration =
           parseInt(durationInput.value) || DEFAULT_SCHEDULE.duration;
+
         const schedule = {
           1: {
             time: document.getElementById("time-1").value.replace(":", "."),
@@ -702,22 +707,17 @@
           },
           duration,
         };
-        // Use the updated setInDB function
         await setInDB("data/schedule", schedule, timeStatus);
       }
 
-      // Updated function to show "Reset ke nilai default" message
       async function handleResetDuration() {
-        // Set input values to default
         durationInput.value = DEFAULT_SCHEDULE.duration;
-        document.getElementById("time-1").value = DEFAULT_SCHEDULE[1].time;
-        document.getElementById("time-2").value = DEFAULT_SCHEDULE[2].time;
+        time1Input.value = DEFAULT_SCHEDULE[1].time;
+        time2Input.value = DEFAULT_SCHEDULE[2].time;
 
-        // Display status message
         timeStatus.textContent = "Reset ke nilai default";
         timeStatus.className = "text-center text-sm text-green-500 h-4";
 
-        // Create a new schedule object with default values, but keep toggle status
         const newSchedule = {
           1: {
             time: DEFAULT_SCHEDULE[1].time.replace(":", "."),
@@ -730,10 +730,8 @@
           duration: DEFAULT_SCHEDULE.duration,
         };
 
-        // Update data in Firebase without displaying status message from setInDB
         await update(ref(getDatabase(), "data/schedule"), newSchedule);
 
-        // Clear status message after 5 seconds
         setTimeout(() => {
           timeStatus.textContent = "";
           timeStatus.className = "text-center text-sm text-gray-500 h-4";
@@ -755,7 +753,6 @@
           const db = getDatabase();
           const updates = { Pump_mode: mode };
 
-          // Only update Pump_Condition for manual modes (3-4)
           if (mode === 3 || mode === 4) {
             updates.Pump_Condition = mode === 3;
           }
@@ -765,6 +762,29 @@
         } catch (error) {
           console.error("Error updating pump status:", error);
         }
+      }
+
+      // --- NEW: Time Update Function ---
+      function updateCurrentTime() {
+        const db = getDatabase();
+        const now = new Date();
+        const hours = String(now.getHours()).padStart(2, "0");
+        const minutes = String(now.getMinutes()).padStart(2, "0");
+        const currentTime = `${hours}.${minutes}`;
+        update(ref(db, "data/schedule"), { current_time: currentTime });
+      }
+
+      // --- NEW: Function to schedule the periodic time update ---
+      function startRealtimeClock() {
+        const now = new Date();
+        const secondsUntilNextMinute = 60 - now.getSeconds();
+
+        // Run the first update after `secondsUntilNextMinute`
+        setTimeout(() => {
+          updateCurrentTime();
+          // Then, run updates every minute
+          setInterval(updateCurrentTime, 60 * 1000);
+        }, secondsUntilNextMinute * 1000);
       }
 
       // --- Main Initialization ---
@@ -790,14 +810,12 @@
             }
           });
 
-          // Initialize default values
           lowerThresholdInput.value = DEFAULT_THRESHOLDS.lower;
           upperThresholdInput.value = DEFAULT_THRESHOLDS.upper;
-          document.getElementById("time-1").value = DEFAULT_SCHEDULE[1].time;
-          document.getElementById("time-2").value = DEFAULT_SCHEDULE[2].time;
+          time1Input.value = DEFAULT_SCHEDULE[1].time;
+          time2Input.value = DEFAULT_SCHEDULE[2].time;
           durationInput.value = DEFAULT_SCHEDULE.duration;
 
-          // Set up toggle change listeners
           document
             .getElementById("toggle-1")
             .addEventListener("change", (e) =>
@@ -809,16 +827,26 @@
               handleScheduleToggleChange(e, "2")
             );
 
-          // Add event listeners for Enter key press
           lowerThresholdInput.addEventListener("keypress", handleEnterKeyPress);
           upperThresholdInput.addEventListener("keypress", handleEnterKeyPress);
-          document
-            .getElementById("time-1")
-            .addEventListener("keypress", handleEnterKeyPress);
-          document
-            .getElementById("time-2")
-            .addEventListener("keypress", handleEnterKeyPress);
+          time1Input.addEventListener("keypress", handleEnterKeyPress);
+          time2Input.addEventListener("keypress", handleEnterKeyPress);
           durationInput.addEventListener("keypress", handleEnterKeyPress);
+
+          // NEW: Add focus and blur listeners to all relevant inputs
+          lowerThresholdInput.addEventListener("focus", handleFocus);
+          lowerThresholdInput.addEventListener("blur", handleBlur);
+          upperThresholdInput.addEventListener("focus", handleFocus);
+          upperThresholdInput.addEventListener("blur", handleBlur);
+          time1Input.addEventListener("focus", handleFocus);
+          time1Input.addEventListener("blur", handleBlur);
+          time2Input.addEventListener("focus", handleFocus);
+          time2Input.addEventListener("blur", handleBlur);
+          durationInput.addEventListener("focus", handleFocus);
+          durationInput.addEventListener("blur", handleBlur);
+
+          // --- NEW: Start the real-time clock ---
+          startRealtimeClock();
         } catch (error) {
           console.error("Firebase initialization failed:", error);
           connectionStatus.textContent = "Not Connected to Firebase";
